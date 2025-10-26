@@ -1,0 +1,78 @@
+{
+    "station_config": {
+        "primary_station": {
+            "scada_code": "13085",
+            "epanet_node": "2",
+            "description": "Tram chinh - Nut 2",
+            "location": "Khu vuc trung tam",
+            "active": true
+        }
+    },
+    "data_mapping": {
+        "P1": {
+            "name": "Ap luc vao",
+            "epanet_field": "pressure",
+            "unit": "m",
+            "position": 1
+        },
+        "Q1": {
+            "name": "Luu luong thuan",
+            "epanet_field": "flow_forward",
+            "unit": "l",
+            "position": 3
+        },
+        "Q2": {
+            "name": "Luu luong nghich",
+            "epanet_field": "flow_reverse",
+            "unit": "l",
+            "position": 4
+        },
+        "V": {
+            "name": "Nguon",
+            "epanet_field": "voltage",
+            "unit": "V",
+            "position": 5
+        }
+    },
+    "conversion_rules": {
+        "pressure": {
+            "source": "P1.value",
+            "target": "pressure",
+            "unit_conversion": "m -> m",
+            "formula": "P1.value"
+        },
+        "flow": {
+            "source": "Q1.value - Q2.value",
+            "target": "flow",
+            "unit_conversion": "l -> LPS",
+            "formula": "(Q1.value - Q2.value) / 1000"
+        },
+        "demand": {
+            "source": "|Q1.value - Q2.value|",
+            "target": "demand",
+            "unit_conversion": "l -> LPS",
+            "formula": "abs(Q1.value - Q2.value) / 1000"
+        },
+        "head": {
+            "source": "P1.value + level",
+            "target": "head",
+            "unit_conversion": "m -> m",
+            "formula": "P1.value + (level or 0)"
+        }
+    },
+    "simulation_config": {
+        "default_duration": 1,
+        "default_hydraulic_timestep": 1,
+        "default_report_timestep": 1,
+        "default_demand_multiplier": 1.0,
+        "realtime_hours_back": 1
+    },
+    "api_endpoints": {
+        "test_connection": "/api/v1/scada/test-connection",
+        "get_stations": "/api/v1/scada/stations",
+        "get_data": "/api/v1/scada/data",
+        "get_realtime": "/api/v1/scada/realtime",
+        "convert_epanet": "/api/v1/scada/convert-to-epanet",
+        "simulation": "/api/v1/scada/simulation-with-realtime"
+    }
+}

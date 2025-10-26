@@ -1,0 +1,41 @@
+{
+    "scada_stations": {
+        "13085": {
+            "description": "Tram SCADA chinh - Dong ho bom tong",
+            "location": "Khu vuc trung tam",
+            "data_types": [
+                "pressure",
+                "flow"
+            ],
+            "note": "SCADA data chi lam boundary condition cho EPANET simulation"
+        }
+    },
+    "api_config": {
+        "base_url": "https://scada.nuocngamsaigon.com/scada-api/api/station",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlxdWVfbmFtZSI6Im5uc2ciLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3VzZXJkYXRhIjoiVDM4WTNqVFJ4Z1JtNFNNOFBoY2dxQT09IiwibmJmIjoxNzYwNTI1MzE1LCJleHAiOjE3NjMyMDM3MTUsImlhdCI6MTc2MDUyNTMxNX0.ddpgC_L7C6shfUYYor3Gmf6RJO9v-C0yfj7r5QXW7rk",
+        "timeout": 30,
+        "retry_attempts": 3
+    },
+    "data_processing": {
+        "pressure_unit": "m",
+        "flow_unit": "LPS",
+        "level_unit": "m",
+        "quality_unit": "NTU",
+        "default_values": {
+            "pressure_min": 0,
+            "pressure_max": 100,
+            "flow_min": -1000,
+            "flow_max": 1000,
+            "level_min": 0,
+            "level_max": 50
+        }
+    },
+    "simulation_config": {
+        "default_duration": 24,
+        "default_hydraulic_timestep": 1,
+        "default_report_timestep": 1,
+        "default_demand_multiplier": 1.0,
+        "realtime_hours_back": 24,
+        "note": "SCADA data used only as boundary conditions for EPANET simulation"
+    }
+}

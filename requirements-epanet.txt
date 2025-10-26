@@ -1,0 +1,19 @@
+# EPANET-specific requirements
+# Choose one of the following options:
+
+# Option 1: WNTR (Recommended - works on all platforms)
+wntr==0.5.0
+
+# Option 2: epanet-python (if available)
+# epanet-python==0.1.0
+
+# Option 3: pyepanet (Windows only)
+# pyepanet==0.1.0
+
+# Option 4: epanettools
+# epanettools==0.1.0
+
+# Additional dependencies for EPANET
+matplotlib==3.7.2
+networkx==3.1
+scipy==1.11.4

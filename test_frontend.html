@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPANET Frontend Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>EPANET Frontend Test</h1>
+
+        <div class="test-section info">
+            <h3>Test Instructions</h3>
+            <p>1. Make sure backend is running on http://localhost:8000</p>
+            <p>2. Make sure frontend is running on http://localhost:3000</p>
+            <p>3. Click "Test API" to verify API is working</p>
+            <p>4. Click "Test Frontend" to test frontend data processing</p>
+        </div>
+
+        <div class="test-section">
+            <h3>API Test</h3>
+            <button onclick="testAPI()">Test API</button>
+            <button onclick="testSimulation()">Test Simulation</button>
+            <div id="apiResult" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Frontend Test</h3>
+            <button onclick="testFrontend()">Test Frontend</button>
+            <div id="frontendResult" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Results</h3>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        const FRONTEND_URL = 'http://localhost:3000';
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}\n`;
+            element.textContent += logMessage;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function setResult(message, type = 'info') {
+            const element = document.getElementById('results');
+            element.innerHTML = `<div class="test-section ${type}">${message}</div>`;
+        }
+
+        async function testAPI() {
+            log('apiResult', 'Testing API connection...');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/network/topology`);
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    log('apiResult', `✅ API working! Found ${data.data.nodes.length} nodes, ${data.data.pipes.length} pipes`);
+                    return true;
+                } else {
+                    log('apiResult', `❌ API error: ${data.message || 'Unknown error'}`);
+                    return false;
+                }
+            } catch (error) {
+                log('apiResult', `❌ API connection failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function testSimulation() {
+            log('apiResult', 'Testing simulation API...');
+
+            try {
+                const params = {
+                    station_codes: ["13085"],
+                    hours_back: 24,
+                    duration: 24,
+                    hydraulic_timestep: 1,
+                    report_timestep: 1
+                };
+
+                const response = await fetch(`${API_BASE_URL}/api/v1/scada/simulation-with-realtime`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(params)
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    const simResult = data.simulation_result;
+                    log('apiResult', `✅ Simulation successful!`);
+                    log('apiResult', `- Status: ${simResult.status}`);
+                    log('apiResult', `- Nodes: ${Object.keys(simResult.nodes_results).length}`);
+                    log('apiResult', `- Pipes: ${Object.keys(simResult.pipes_results).length}`);
+
+                    // Show sample data
+                    const nodesResults = simResult.nodes_results;
+                    if (nodesResults && Object.keys(nodesResults).length > 0) {
+                        const firstNodeId = Object.keys(nodesResults)[0];
+                        const firstNodeData = nodesResults[firstNodeId][0];
+                        log('apiResult', `- Sample node (${firstNodeId}): pressure=${firstNodeData.pressure.toFixed(2)}, flow=${firstNodeData.flow.toFixed(2)}`);
+                    }
+
+                    return true;
+                } else {
+                    log('apiResult', `❌ Simulation failed: ${data.message || 'Unknown error'}`);
+                    return false;
+                }
+            } catch (error) {
+                log('apiResult', `❌ Simulation error: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function testFrontend() {
+            log('frontendResult', 'Testing frontend...');
+
+            try {
+                // Test if frontend is accessible
+                const response = await fetch(FRONTEND_URL);
+                if (!response.ok) {
+                    log('frontendResult', `❌ Frontend not accessible: ${response.status}`);
+                    return false;
+                }
+
+                log('frontendResult', '✅ Frontend is accessible');
+                log('frontendResult', 'Please open http://localhost:3000 in your browser');
+                log('frontendResult', '1. Run simulation with station code "13085"');
+                log('frontendResult', '2. Check if nodes change colors');
+                log('frontendResult', '3. Click on nodes to see tooltips');
+                log('frontendResult', '4. Check browser console for any errors');
+
+                return true;
+            } catch (error) {
+                log('frontendResult', `❌ Frontend test failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        // Auto-run tests on page load
+        window.onload = async function () {
+            log('apiResult', 'Starting automated tests...');
+
+            const apiTest = await testAPI();
+            const simTest = await testSimulation();
+            const frontendTest = await testFrontend();
+
+            if (apiTest && simTest && frontendTest) {
+                setResult('✅ All tests passed! Frontend should work correctly now.', 'success');
+            } else {
+                setResult('❌ Some tests failed. Check the logs above for details.', 'error');
+            }
+        };
+    </script>
+</body>
+
+</html>
