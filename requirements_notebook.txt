@@ -1,0 +1,31 @@
+# Requirements cho Notebook Training
+# Install: pip install -r requirements_notebook.txt
+
+# Core data processing
+pandas>=1.5.0
+numpy>=1.21.0
+
+# Machine Learning
+scikit-learn>=1.0.0
+catboost>=1.0.0  # GPU support included if CUDA available
+# Note: CatBoost tự động detect CUDA nếu có CUDA toolkit installed
+
+# Visualization (cho cells visualization đẹp)
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Jupyter (để chạy notebook)
+jupyter>=1.0.0
+jupyterlab>=3.0.0
+
+# Optional: Hyperparameter optimization (chỉ cần nếu set USE_HYPEROPT = True trong Cell 74)
+# optuna>=3.0.0
+
+# Note: Các module sau là built-in Python, KHÔNG cần cài:
+# - pathlib (Python 3.4+)
+# - pickle (built-in)
+# - warnings (built-in)
+# - os (built-in)
+# - time (built-in)
+# - json (built-in)
+

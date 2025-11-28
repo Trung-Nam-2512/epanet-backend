@@ -5,7 +5,7 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 
-from api.routes import simulation, data_input, scada_integration
+from api.routes import simulation, data_input, scada_integration, leak_detection
 from routers.network_topology import router as network_topology_router
 from core.config import settings
 from core.database import init_db
@@ -41,6 +41,7 @@ app.add_middleware(
 app.include_router(simulation.router, prefix="/api/v1/simulation", tags=["simulation"])
 app.include_router(data_input.router, prefix="/api/v1/data", tags=["data-input"])
 app.include_router(scada_integration.router, prefix="/api/v1/scada", tags=["scada-integration"])
+app.include_router(leak_detection.router, prefix="/api/v1/leak-detection", tags=["leak-detection"])
 app.include_router(network_topology_router, prefix="/api/v1", tags=["network-topology"])
 
 @app.get("/")

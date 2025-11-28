@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Backend API - EPANET Simulation (main.py)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: epanet-backend
+    volumes:
+      - ./models:/app/models:ro
+      - ./epanetVip1.inp:/app/epanetVip1.inp:ro
+      - ./logs:/app/logs
+      - ./dataset/network_topology.csv:/app/dataset/network_topology.csv:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    networks:
+      - epanet-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Leak Detection API (leak_detection_api.py)
+  leak-detection-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: epanet-leak-detection
+    volumes:
+      - ./models:/app/models:ro
+      - ./epanetVip1.inp:/app/epanetVip1.inp:ro
+      - ./logs:/app/logs
+      - ./dataset/network_topology.csv:/app/dataset/network_topology.csv:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: uvicorn leak_detection_api:app --host 0.0.0.0 --port 8001
+    networks:
+      - epanet-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend - React Build (build trước khi chạy docker-compose)
+  # Frontend build folder sẽ được mount vào nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        REACT_APP_API_URL: http://localhost:1438/api/v1
+        REACT_APP_LEAK_DETECTION_API_URL: http://localhost:1438/api/v1/leak-detection
+        REACT_APP_MAPBOX_TOKEN: ${MAPBOX_TOKEN:-pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw}
+    container_name: epanet-frontend-builder
+    volumes:
+      - ./epanet-frontend/build:/build-output
+    command: ["sh", "-c", "cp -r /app/build/* /build-output/ && echo 'Frontend build copied' && tail -f /dev/null"]
+    networks:
+      - epanet-network
+
+  # Nginx Reverse Proxy (serve cả frontend và backend)
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: epanet-nginx
+    ports:
+      - "1437:1437"
+      - "1438:1438"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./epanet-frontend/build:/var/www/frontend:ro
+    depends_on:
+      - backend
+      - leak-detection-api
+      - frontend
+    networks:
+      - epanet-network
+    restart: unless-stopped
+
+networks:
+  epanet-network:
+    driver: bridge

@@ -1,7 +1,212 @@
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# ============================================
+# Node.js / Frontend
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+.pnp
+.pnp.js
+
+# React build
+epanet-frontend/build/
+epanet-frontend/.cache/
+epanet-frontend/coverage/
+
+# ============================================
+# IDE & Editor
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ============================================
+# OS Files
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ============================================
+# Environment & Config
+# ============================================
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# ============================================
+# Logs & Debug Files
+# ============================================
+logs/
+*.log
+debug_output.txt
+test_output.txt
+notebook_outputs.txt
+cell*.txt
+
+# ============================================
+# Dataset & Large Data Files
+# ============================================
+dataset/
+dataset_backup/
+*.parquet
+*.csv
+!config/*.csv
+!config/*.json
+
+# ============================================
+# Models & Training Outputs
+# ============================================
+# Ignore all .pkl files first, then whitelist essential ones
+models/*.pkl
+# Keep essential model files for running the application
+!models/leak_detection_model_local.pkl
+!models/leak_detection_model.pkl
+!models/scaler.pkl
+# Ignore other model formats
+models/*.h5
+models/*.hdf5
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.pb
+models/*.tflite
+# Keep metadata and schemas
+!models/model_metadata.json
+!models/schemas.py
+
+# CatBoost training info
+catboost_info/
+*.tsv
+
+# ============================================
+# Training & Notebook Outputs
+# ============================================
+EPANET_TRAINING_MINIMAL_*/
+leak_scenarios_output/
+excel_export/
+results/
+outputs/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ============================================
+# Temporary & Backup Files
+# ============================================
+*.tmp
+*.temp
+temp.*
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+*~
+*.bin
+*.rpt
+temp.bin
+temp.inp
+temp.rpt
+debug-pipes.js
+debug*.js
+
+# ============================================
+# Database Files
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
 epanet_data.db
-epanet-frontend
-venv
-results
 
+# ============================================
+# Documentation (Markdown files)
+# ============================================
+# Ignore all .md files except README.md
+*.md
+!README.md
+!epanet-frontend/README.md
+!notebooks/README.md
+# Explicitly ignore large deployment docs
+DOCKER_DEPLOYMENT.md
 
+# ============================================
+# Docker (optional - uncomment if not using Docker)
+# ============================================
+# docker-compose.override.yml
+# .docker/
+
+# ============================================
+# Scripts & Upload Commands (sensitive info)
+# ============================================
+SCP_UPLOAD_COMMANDS.txt
+*.ps1
+*.sh
+!docker/*.sh
+!scripts/*.py
+
+# ============================================
+# Large Input Files (optional - keep if needed)
+# ============================================
+# Uncomment if you want to ignore large .inp files
+# *.inp
+# !epanetVip1.inp
+
+# ============================================
+# Test Files & Coverage
+# ============================================
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.hypothesis/
+coverage.xml
+*.cover
+
+# ============================================
+# Misc
+# ============================================
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.dylib
+*.dll
+*.exe

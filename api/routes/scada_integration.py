@@ -221,39 +221,37 @@ async def run_simulation_with_scada_data(request: SimulationWithRealtimeRequest)
                 detail="Khong the lay du lieu tu SCADA"
             )
         
-        # Chuyen doi du lieu SCADA sang dinh dang RealTimeDataInput
-        nodes_data = []
-        for station_code, boundary_data in scada_result["boundary_conditions"].items():
-            for record in boundary_data:
-                # SCADA data chi la boundary condition, KHONG co node_id
-                node_data = NodeData(
-                    node_id=None,  # SCADA data khong map voi node cu the
-                    pressure=record.get("pressure"),
-                    flow=record.get("flow"),
-                    demand=None,  # KHONG su dung demand tu SCADA
-                    head=None     # KHONG su dung head tu SCADA
-                )
-                nodes_data.append(node_data)
+        # ✅ TRUYỀN TRỰC TIẾP SCADA BOUNDARY DATA VÀO SIMULATION
+        # Giữ nguyên boundary_conditions dict để có station_code mapping
+        scada_boundary_data = scada_result.get("boundary_conditions", {})
         
-        # Tao RealTimeDataInput
-        realtime_data = RealTimeDataInput(
-            timestamp=datetime.now(),
-            nodes=nodes_data
-        )
-        
-        # Tao SimulationInput voi du lieu thoi gian thuc
+        # Tao SimulationInput (không cần RealTimeDataInput nữa vì dùng scada_boundary_data trực tiếp)
         from models.schemas import SimulationInput
         simulation_input = SimulationInput(
             duration=request.duration,
             hydraulic_timestep=request.hydraulic_timestep,
             report_timestep=request.report_timestep,
-            real_time_data=realtime_data,
+            real_time_data=None,  # Không dùng nữa, dùng scada_boundary_data trực tiếp
             demand_multiplier=1.0
         )
         
-        # Chay mo phong EPANET
+        # Chay mo phong EPANET với SCADA boundary data
         from services.epanet_service import epanet_service
-        simulation_result = epanet_service.run_simulation(simulation_input)
+        try:
+            logger.info(f"Running simulation with {len(scada_boundary_data)} SCADA stations")
+            logger.info(f"SCADA boundary data keys: {list(scada_boundary_data.keys())}")
+            simulation_result = epanet_service.run_simulation(
+                simulation_input,
+                scada_boundary_data=scada_boundary_data  # ✅ Truyền SCADA boundary data
+            )
+            logger.info(f"Simulation completed with status: {simulation_result.status}")
+            if simulation_result.status == "failed":
+                logger.error(f"Simulation failed: {simulation_result.error_message}")
+        except Exception as sim_error:
+            import traceback
+            logger.error(f"Error in epanet_service.run_simulation: {str(sim_error)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise
         
         return {
             "success": simulation_result.status == "completed",
@@ -262,8 +260,13 @@ async def run_simulation_with_scada_data(request: SimulationWithRealtimeRequest)
             "scada_summary": scada_result["summary"]
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         logger.error(f"Error running simulation with SCADA data: {str(e)}")
+        logger.error(f"Traceback: {error_trace}")
         raise HTTPException(
             status_code=500,
             detail=f"Error running simulation with SCADA data: {str(e)}"
@@ -318,38 +321,37 @@ async def run_simulation_with_custom_time(request: SimulationWithCustomTimeReque
                 if epanet_formatted:
                     epanet_data[station_code] = epanet_formatted
         
-        # Chuyen doi du lieu SCADA sang dinh dang RealTimeDataInput
-        nodes_data = []
+        # ✅ TRUYỀN TRỰC TIẾP SCADA BOUNDARY DATA VÀO SIMULATION
+        # Convert epanet_data thành format boundary_conditions (giữ station_code)
+        scada_boundary_data = {}
         for station_code, epanet_data_list in epanet_data.items():
+            # Format: list of dicts với timestamp, pressure, flow
+            boundary_records = []
             for record in epanet_data_list:
-                node_data = NodeData(
-                    node_id=record["node_id"],
-                    pressure=record.get("pressure"),
-                    flow=record.get("flow"),
-                    demand=record.get("demand"),
-                    head=record.get("head")
-                )
-                nodes_data.append(node_data)
+                boundary_records.append({
+                    "timestamp": record.get("timestamp"),
+                    "pressure": record.get("pressure"),
+                    "flow": record.get("flow"),
+                    "station_code": station_code
+                })
+            scada_boundary_data[station_code] = boundary_records
         
-        # Tao RealTimeDataInput
-        realtime_data = RealTimeDataInput(
-            timestamp=datetime.now(),
-            nodes=nodes_data
-        )
-        
-        # Tao SimulationInput voi du lieu thoi gian thuc
+        # Tao SimulationInput
         from models.schemas import SimulationInput
         simulation_input = SimulationInput(
             duration=request.duration,
             hydraulic_timestep=request.hydraulic_timestep,
             report_timestep=request.report_timestep,
-            real_time_data=realtime_data,
+            real_time_data=None,  # Không dùng nữa, dùng scada_boundary_data trực tiếp
             demand_multiplier=1.0
         )
         
-        # Chay mo phong EPANET
+        # Chay mo phong EPANET với SCADA boundary data
         from services.epanet_service import epanet_service
-        simulation_result = epanet_service.run_simulation(simulation_input)
+        simulation_result = epanet_service.run_simulation(
+            simulation_input,
+            scada_boundary_data=scada_boundary_data  # ✅ Truyền SCADA boundary data
+        )
         
         return {
             "success": simulation_result.status == "completed",

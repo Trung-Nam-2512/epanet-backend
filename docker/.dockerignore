@@ -1,0 +1,4 @@
+# Only ignore if this is a separate context
+*.md
+!README.md
+

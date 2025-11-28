@@ -1,0 +1,107 @@
+# Training Configuration for Leak Detection Model
+# Cấu hình training cho server
+
+# Dataset paths
+dataset:
+  data_dir: "dataset"
+  metadata_file: "dataset/metadata.csv"
+  labels_file: "dataset/labels.csv"
+  
+# Data preprocessing
+preprocessing:
+  # Undersampling để cân bằng class
+  use_undersampling: true
+  target_imbalance_ratio: 5.0  # 5:1 (giảm từ 10:1 vì dataset mới có leak ratio cao hơn)
+  
+  # Feature engineering
+  use_enhanced_features: true  # pressure_change, MA3, MA5, pressure_drop
+  use_spatial_features: true   # network-level statistics, node deviation
+  use_time_features: false     # hour_sin/cos - TẮT để tránh time bias
+  
+# Model configuration
+model:
+  type: "catboost"  # catboost, lightgbm, randomforest
+  
+  # CatBoost parameters
+  catboost:
+    iterations: 1000
+    learning_rate: 0.05
+    depth: 8
+    l2_leaf_reg: 5
+    border_count: 128
+    subsample: 0.8
+    bootstrap_type: "Bernoulli"  # Required for subsample
+    use_gpu: true  # Auto-detect GPU, fallback to CPU
+    
+    # Class weights (tăng weight cho leak class)
+    class_weights: [1.0, 5.0]  # [no_leak, leak]
+    
+    # Evaluation
+    eval_metric: "F1"
+    early_stopping_rounds: 100
+    verbose: 100
+
+# Advanced techniques
+advanced:
+  # SMOTE (Synthetic Minority Over-sampling)
+  use_smote: false  # TẮT - không cần thiết với dataset mới có leak ratio cao
+  smote_sampling_strategy: 0.6  # minority becomes 60% of majority
+  
+  # Ensemble learning
+  use_ensemble: false  # TẮT để train nhanh hơn, bật nếu muốn cải thiện performance
+  ensemble_models: ["catboost", "lightgbm", "randomforest"]
+  ensemble_voting: "soft"  # soft (probability) or hard (majority vote)
+  
+  # Hyperparameter optimization (Optuna)
+  use_optuna: false  # TẮT - tốn nhiều thời gian, dùng manual tuning
+  optuna_n_trials: 50
+
+# Post-processing
+post_processing:
+  # Temporal filter: loại bỏ leak predictions không kéo dài đủ lâu
+  apply_temporal_filter: false  # TẮT - đã biết làm giảm recall
+  temporal_min_consecutive: 2
+  
+  # Spatial filter: loại bỏ leak predictions không có pressure drop
+  apply_spatial_filter: false  # TẮT - đã biết làm giảm recall
+  spatial_pressure_threshold: 0.2
+
+# Threshold optimization
+threshold_optimization:
+  enabled: true
+  optimize_for: "f2"  # f1, f2, recall, precision
+  min_recall: 0.60  # Minimum recall constraint
+  
+# Evaluation
+evaluation:
+  # Metrics to compute
+  compute_per_scenario_topk: true
+  topk_values: [1, 3, 5, 10]
+  
+  # Visualization
+  plot_confusion_matrix: true
+  plot_roc_curve: true
+  plot_pr_curve: true
+  plot_feature_importance: true
+  
+# Output
+output:
+  model_dir: "models"
+  model_file: "leak_detection_model.pkl"
+  metadata_file: "model_metadata.json"
+  results_file: "training_results.json"
+  
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  log_file: "logs/training.log"
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,86 @@
+# Cấu hình mô phỏng rò rỉ cho training ML - VERSION: HIGH LEAK RATIO
+# Leak Simulation Configuration for ML Training - OPTIMIZED FOR HIGHER LEAK RATIO
+# 
+# MỤC ĐÍCH: Tăng leak ratio từ 0.14% → 1-2% để model học tốt hơn
+# 
+# THAY ĐỔI CHÍNH:
+# - leaks_per_scenario: 1 → 2 (2 leaks mỗi scenario)
+# - duration_h_min: 5.5 → 8 (leak dài hơn)
+# - duration_h_max: 7.2 → 12 (leak dài hơn)
+# - start_h_max: 17 → 12 (đảm bảo leak không vượt 24h)
+
+# Đường dẫn file .inp
+inp_path: "epanetVip1.inp"
+
+# Thư mục output (theo yêu cầu: dataset/)
+out_dir: "dataset"
+
+# Số lượng kịch bản cần sinh
+# Có thể giảm xuống 2000 nếu gấp thời gian
+n_scenarios: 2000  # Giảm từ 3000 để generate nhanh hơn
+
+# Đảm bảo mỗi node có ít nhất 1 scenario (KHUYẾN NGHỊ: true)
+ensure_all_nodes_covered: true
+
+# Cấu hình node rò rỉ
+leak_nodes:
+  # Nếu null hoặc [], sẽ dùng tất cả junctions
+  node_list: null
+  
+  # 🔧 THAY ĐỔI: Tăng từ 1 → 2 leaks per scenario
+  # Để tăng leak ratio từ 0.14% → ~0.8-1.0%
+  leaks_per_scenario: 2  # Tăng từ 1 → 2
+  
+# Kích thước lỗ rò (m²) - bốc thăm log-uniform
+leak_area_m2:
+  min: 0.0001    # 0.1 cm² (rất nhỏ)
+  max: 0.01      # 100 cm² (lớn)
+
+# Thời gian rò rỉ (giờ)
+# 🔧 THAY ĐỔI: Tăng duration và điều chỉnh start để leak dài hơn
+leak_time_h:
+  start_h_min: 1      # Giảm từ 2 → 1 (bắt đầu sớm hơn)
+  start_h_max: 12     # Giảm từ 17 → 12 (đảm bảo 12+12=24, không vượt quá)
+  duration_h_min: 8   # Tăng từ 5.5 → 8 (leak dài hơn)
+  duration_h_max: 12  # Tăng từ 7.2 → 12 (leak dài hơn)
+  # Với duration 8-12h: Leak sẽ có 32-48 timestamps (thay vì 22-29)
+  # → Tăng leak ratio đáng kể
+
+# Hệ số xả Cd (discharge coefficient)
+discharge_coeff: 0.75
+
+# Cấu hình mô phỏng
+simulation:
+  duration_h: 24          # Thời gian mô phỏng tổng (giờ)
+  hydraulic_timestep_h: 0.25  # Bước thời gian thủy lực (giờ)
+  report_timestep_h: 0.25  # Bước thời gian báo cáo (giờ) - 15 phút
+  use_scada: false
+  scada_hours_back: 24
+
+# Cấu hình nhiễu đo (Gaussian noise)
+noise:
+  pressure_sigma: 0.0
+  flow_sigma: 0.0
+  enabled: false
+
+# Cấu hình export
+export:
+  timeseries_format: "parquet"
+  save_metadata: true
+  save_csv: false
+  parquet_compression: "snappy"
+
+# Cấu hình xử lý song song
+parallel:
+  enabled: true
+  max_workers: null  # null = số CPU cores
+
+
+
+
+
+
+
+
+
+

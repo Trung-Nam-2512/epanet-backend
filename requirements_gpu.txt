@@ -1,0 +1,34 @@
+# Core dependencies
+pandas>=1.5.0
+numpy>=1.21.0
+scikit-learn>=1.0.0
+scipy>=1.7.0
+
+# ML libraries
+xgboost>=2.0.0  # Has GPU support built-in
+imbalanced-learn>=0.10.0  # For SMOTE
+
+# Optional: TensorFlow GPU (uncomment if needed)
+# tensorflow-gpu>=2.10.0
+# OR for CPU-only: tensorflow>=2.10.0
+
+# Optional: PyTorch GPU (uncomment if needed)
+# torch>=2.0.0
+# torchvision>=0.15.0
+# Index URL: https://download.pytorch.org/whl/cu118
+
+# Optional: RAPIDS cuML (for GPU RandomForest)
+# Requires CUDA 11.0+ and specific conda environment
+# See: https://rapids.ai/start.html
+
+# Data processing
+pyarrow>=10.0.0  # For parquet
+fastparquet>=2022.0.0
+
+# Utilities
+pyyaml>=6.0
+tqdm>=4.64.0
+
+# WNTR for EPANET simulation
+wntr>=0.5.0
+

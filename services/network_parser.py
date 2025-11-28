@@ -16,7 +16,8 @@ class NetworkNode:
     x_coord: float
     y_coord: float
     elevation: float = 0.0
-    demand: float = 0.0
+    demand: float = 0.0  # Demand từ [JUNCTIONS] section (thường là 0)
+    base_demand: float = 0.0  # Base demand từ [DEMANDS] section - dùng để so sánh
     node_type: str = "junction"  # junction, reservoir, tank
 
 @dataclass
@@ -68,6 +69,9 @@ class NetworkParser:
             # Parse junctions để lấy elevation và demand
             self._parse_junctions(content)
             
+            # Parse demands section để lấy base_demand (demand dùng để so sánh)
+            self._parse_demands(content)
+            
             self.parsed = True
             logger.info(f"Finished parsing. Found {len(self.nodes)} nodes and {len(self.pipes)} pipes.")
             
@@ -104,6 +108,10 @@ class NetworkParser:
                 line = line.strip()
                 if not line or line.startswith(';'):
                     continue
+                
+                # Loại bỏ inline comments (tất cả sau dấu ;)
+                if ';' in line:
+                    line = line.split(';')[0].strip()
                 
                 # Parse format: Node_ID X-Coord Y-Coord
                 parts = line.split()
@@ -144,6 +152,10 @@ class NetworkParser:
                 line = line.strip()
                 if not line or line.startswith(';'):
                     continue
+                
+                # Loại bỏ inline comments (tất cả sau dấu ;)
+                if ';' in line:
+                    line = line.split(';')[0].strip()
                 
                 # Parse format: Pipe_ID Node1 Node2 Length Diameter Roughness MinorLoss Status
                 parts = line.split()
@@ -196,13 +208,19 @@ class NetworkParser:
                 if not line or line.startswith(';'):
                     continue
                 
+                # Loại bỏ inline comments (tất cả sau dấu ;)
+                if ';' in line:
+                    line = line.split(';')[0].strip()
+                
                 # Parse format: Node_ID Elevation Demand Pattern
+                # Demand và Pattern là optional
                 parts = line.split()
-                if len(parts) >= 3:
+                if len(parts) >= 2:  # Tối thiểu cần Node_ID và Elevation
                     try:
                         node_id = parts[0]
                         elevation = float(parts[1])
-                        demand = float(parts[2])
+                        # Demand là optional (mặc định 0.0)
+                        demand = float(parts[2]) if len(parts) >= 3 else 0.0
                         
                         junction_data[node_id] = {
                             'elevation': elevation,
@@ -223,6 +241,61 @@ class NetworkParser:
         except Exception as e:
             logger.error(f"Error parsing junctions: {str(e)}")
     
+    def _parse_demands(self, content: str):
+        """Parse phần [DEMANDS] để lấy base_demand (demand dùng để so sánh)"""
+        try:
+            # Tìm phần [DEMANDS]
+            demands_match = re.search(r'\[DEMANDS\](.*?)(?=\[|\Z)', content, re.DOTALL)
+            if not demands_match:
+                logger.warning("Không tìm thấy phần [DEMANDS]")
+                return
+            
+            demands_section = demands_match.group(1)
+            lines = demands_section.strip().split('\n')
+            
+            # Tạo dict để lookup demand data
+            demand_data = {}
+            for line in lines:
+                line = line.strip()
+                if not line or line.startswith(';'):
+                    continue
+                
+                # Loại bỏ inline comments
+                if ';' in line:
+                    line = line.split(';')[0].strip()
+                
+                # Parse format: Junction Demand Pattern Category
+                # Junction và Demand là required, Pattern và Category là optional
+                parts = line.split()
+                if len(parts) >= 2:
+                    try:
+                        node_id = parts[0]
+                        base_demand = float(parts[1])
+                        
+                        # Store demand (có thể có nhiều demand cho cùng một node)
+                        # Nếu node đã có demand, cộng dồn (hoặc lấy giá trị cuối)
+                        if node_id in demand_data:
+                            # Cộng dồn nếu có nhiều demand cho cùng node
+                            demand_data[node_id] += base_demand
+                        else:
+                            demand_data[node_id] = base_demand
+                        
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"Không thể parse demand line: {line} - {e}")
+                        continue
+            
+            # Cập nhật nodes với base_demand
+            updated_count = 0
+            for node in self.nodes:
+                if node.id in demand_data:
+                    node.base_demand = demand_data[node.id]
+                    updated_count += 1
+            
+            logger.info(f"Updated {updated_count} nodes with base_demand from [DEMANDS] section")
+                        
+        except Exception as e:
+            logger.error(f"Error parsing demands: {str(e)}")
+    
     def _node_to_dict(self, node: NetworkNode) -> Dict[str, Any]:
         """Convert NetworkNode to dict"""
         return {
@@ -230,7 +303,8 @@ class NetworkParser:
             "x_coord": node.x_coord,
             "y_coord": node.y_coord,
             "elevation": node.elevation,
-            "demand": node.demand,
+            "demand": node.demand,  # Demand từ [JUNCTIONS] (thường là 0)
+            "base_demand": node.base_demand,  # Base demand từ [DEMANDS] - dùng để so sánh
             "node_type": node.node_type
         }
     

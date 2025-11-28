@@ -1,0 +1,39 @@
+# Frontend Dockerfile - React Build
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY epanet-frontend/package*.json ./
+
+# Install dependencies
+RUN npm ci --legacy-peer-deps
+
+# Copy source code
+COPY epanet-frontend/ ./
+
+# Build arguments for environment variables
+ARG REACT_APP_API_URL
+ARG REACT_APP_LEAK_DETECTION_API_URL
+ARG REACT_APP_MAPBOX_TOKEN
+
+# Set environment variables for build
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+ENV REACT_APP_LEAK_DETECTION_API_URL=${REACT_APP_LEAK_DETECTION_API_URL}
+ENV REACT_APP_MAPBOX_TOKEN=${REACT_APP_MAPBOX_TOKEN}
+
+# Build React app
+RUN npm run build
+
+# Final stage - Copy build output
+FROM alpine:latest
+
+# Install cp and bash
+RUN apk add --no-cache bash
+
+# Copy built files from builder
+COPY --from=builder /app/build /app/build
+
+# Keep container running (build will be copied to volume)
+CMD ["sh", "-c", "cp -r /app/build/* /build-output/ && echo '✅ Frontend build copied to volume' && tail -f /dev/null"]

@@ -1,0 +1,35 @@
+# Backend Dockerfile - EPANET Simulation API
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (for better caching)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install FastAPI and Uvicorn if not in requirements
+RUN pip install --no-cache-dir fastapi uvicorn python-dotenv pydantic-settings requests
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p logs models dataset
+
+# Expose ports
+# 8000: Main API (EPANET Simulation)
+# 8001: Leak Detection API
+EXPOSE 8000 8001
+
+# Default command (can be overridden in docker-compose)
+CMD ["python", "main.py"]
+

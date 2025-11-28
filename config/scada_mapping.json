@@ -7,12 +7,21 @@
                 "pressure",
                 "flow"
             ],
-            "note": "SCADA data chi lam boundary condition cho EPANET simulation"
+            "note": "SCADA data chi lam boundary condition cho EPANET simulation",
+            "epanet_mapping": {
+                "epanet_node": "TXU2",
+                "node_type": "reservoir",
+                "apply_pressure_as_head": true,
+                "apply_flow": false,
+                "pressure_type": "absolute",
+                "elevation": 0.0,
+                "description": "SCADA station 13085 maps to reservoir TXU2 - pressure from SCADA will be applied as reservoir head. pressure_type: 'absolute' means SCADA pressure is already absolute head (m), 'gauge' means gauge pressure (m) that needs to be added to elevation"
+            }
         }
     },
     "api_config": {
         "base_url": "https://scada.nuocngamsaigon.com/scada-api/api/station",
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlxdWVfbmFtZSI6Im5uc2ciLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3VzZXJkYXRhIjoiVDM4WTNqVFJ4Z1JtNFNNOFBoY2dxQT09IiwibmJmIjoxNzYwNTI1MzE1LCJleHAiOjE3NjMyMDM3MTUsImlhdCI6MTc2MDUyNTMxNX0.ddpgC_L7C6shfUYYor3Gmf6RJO9v-C0yfj7r5QXW7rk",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlxdWVfbmFtZSI6Im5uc2ciLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3VzZXJkYXRhIjoiVDM4WTNqVFJ4Z1JtNFNNOFBoY2dxQT09IiwibmJmIjoxNzY0MzI1ODgzLCJleHAiOjE3NjY5MTc4ODMsImlhdCI6MTc2NDMyNTg4M30.NNJpJ3mfmyxqzJo8MK3y4b3YU7lFpPRsnt6kOWsDC1Q",
         "timeout": 30,
         "retry_attempts": 3
     },

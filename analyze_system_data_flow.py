@@ -18,7 +18,7 @@ def analyze_system_data_flow():
     # Test SCADA data
     print("Testing SCADA data...")
     try:
-        scada_response = requests.get("http://localhost:8000/api/v1/scada/data?station_codes=13085&hours_back=24")
+        scada_response = requests.get("/api/v1/scada/data?station_codes=13085&hours_back=24")
         if scada_response.status_code == 200:
             scada_data = scada_response.json()
             print(f"SCADA API Status: SUCCESS")
@@ -59,7 +59,7 @@ def analyze_system_data_flow():
         }
         
         sim_response = requests.post(
-            "http://localhost:8000/api/v1/scada/simulation-with-realtime",
+            "/api/v1/scada/simulation-with-realtime",
             json=simulation_params,
             headers={"Content-Type": "application/json"}
         )

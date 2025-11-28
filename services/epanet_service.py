@@ -22,14 +22,25 @@ from core.config import settings
 from core.database import db_manager
 from models.schemas import SimulationInput, SimulationResult, SimulationStatus, NodeData
 from utils.logger import logger
+from services.scada_boundary_service import scada_boundary_service
 
 class EPANETService:
     def __init__(self):
         self.input_file = settings.epanet_input_file
         self.temp_dir = tempfile.mkdtemp()
         
-    def run_simulation(self, simulation_input: SimulationInput) -> SimulationResult:
-        """Chay mo phong EPANET voi du lieu dau vao"""
+    def run_simulation(
+        self, 
+        simulation_input: SimulationInput,
+        scada_boundary_data: Optional[Dict[str, List[Dict[str, Any]]]] = None
+    ) -> SimulationResult:
+        """
+        Chay mo phong EPANET voi du lieu dau vao
+        
+        Args:
+            simulation_input: Input parameters cho simulation
+            scada_boundary_data: Optional SCADA boundary conditions dict (key: station_code, value: list of records)
+        """
         # Convert to dict with proper serialization
         input_dict = simulation_input.dict()
         # Convert NodeData objects to dicts
@@ -44,7 +55,7 @@ class EPANETService:
         
         try:
             # Always try real EPANET simulation first
-            return self._real_simulation(simulation_input, run_id)
+            return self._real_simulation(simulation_input, run_id, scada_boundary_data)
             
         except Exception as e:
             error_msg = f"Simulation failed: {str(e)}"
@@ -60,7 +71,12 @@ class EPANETService:
                 error_message=error_msg
             )
     
-    def _real_simulation(self, simulation_input: SimulationInput, run_id: int) -> SimulationResult:
+    def _real_simulation(
+        self, 
+        simulation_input: SimulationInput, 
+        run_id: int,
+        scada_boundary_data: Optional[Dict[str, List[Dict[str, Any]]]] = None
+    ) -> SimulationResult:
         """Chay mo phong EPANET thuc te voi WNTR"""
         try:
             # Import WNTR
@@ -79,16 +95,56 @@ class EPANETService:
             wn.options.time.start_clocktime = 0  # Start from beginning
             wn.options.time.pattern_start = 0    # Pattern starts from beginning (but not used)
             
-            # ✅ BEST SOLUTION: Set all pattern multipliers to 1.0
+            # ✅ BEST SOLUTION: Set all EXISTING pattern multipliers to 1.0 (for demand patterns only)
             # This keeps pattern structure intact but neutralizes its effect
-            for pattern_id in wn.pattern_name_list:
+            # NOTE: SCADA head patterns will be created AFTER this, so they won't be affected
+            existing_patterns = list(wn.pattern_name_list)  # Copy list to avoid modification during iteration
+            for pattern_id in existing_patterns:
+                # Skip SCADA head patterns (they will be created later)
+                if pattern_id.startswith("SCADA_HEAD_"):
+                    continue
                 pattern = wn.get_pattern(pattern_id)
                 pattern.multipliers = [1.0] * len(pattern.multipliers)
                 logger.info(f"Set pattern {pattern_id} multipliers to 1.0 (neutral effect)")
             
             logger.info("Applied fixed demand logic - pattern multipliers set to 1.0")
             
-            # Update real-time data if available
+            # ✅ APPLY SCADA BOUNDARY CONDITIONS (nếu có)
+            if scada_boundary_data:
+                logger.info("Applying SCADA boundary conditions to WNTR model...")
+                # Extract simulation_start_time từ SCADA data nếu có
+                simulation_start_time = None
+                for station_code, records in scada_boundary_data.items():
+                    if records:
+                        first_record = records[0]
+                        timestamp_str = first_record.get('timestamp')
+                        if timestamp_str:
+                            try:
+                                from datetime import datetime
+                                if 'T' in timestamp_str:
+                                    simulation_start_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                else:
+                                    simulation_start_time = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M")
+                                break
+                            except:
+                                pass
+                
+                scada_applied = scada_boundary_service.apply_scada_boundary_conditions(
+                    wn=wn,
+                    scada_boundary_data=scada_boundary_data,
+                    simulation_duration_hours=simulation_input.duration,
+                    hydraulic_timestep_hours=simulation_input.hydraulic_timestep,
+                    simulation_start_time=simulation_start_time  # Fix: Pass simulation_start_time
+                )
+                if scada_applied:
+                    logger.info("[OK] SCADA boundary conditions applied successfully")
+                else:
+                    logger.warning("[WARN] SCADA boundary conditions not applied - using INP file boundary conditions")
+            else:
+                logger.info("No SCADA boundary data provided - using INP file boundary conditions")
+            
+            # Legacy: Update real-time data if available (for backward compatibility)
+            # Note: This is now secondary to SCADA boundary conditions
             if simulation_input.real_time_data:
                 self._update_wntr_real_time_data(wn, simulation_input.real_time_data.nodes)
             
@@ -178,9 +234,12 @@ class EPANETService:
                                     logger.info(f"WNTR flowrate sample: {results.link['flowrate'].iloc[0, 0]}")
                             
                             # Convert m³/s to LPS: multiply by 1000
+                            # EPANET convention:
+                            # - Positive demand = consumption (water flowing INTO node) → flow should be POSITIVE
+                            # - Negative demand = supply (water flowing OUT OF node) → flow should be NEGATIVE
                             if demand is not None and demand != 0:
                                 demand_lps = demand * 1000  # Convert m³/s to LPS
-                                flow = -demand_lps  # Convert negative demand to positive flow
+                                flow = demand_lps  # Flow = demand (keep same sign: positive for consumption, negative for supply)
                             else:
                                 demand_lps = 0.0
                                 flow = 0.0

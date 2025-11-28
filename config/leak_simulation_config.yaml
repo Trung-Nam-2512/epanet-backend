@@ -1,0 +1,89 @@
+# Cấu hình mô phỏng rò rỉ cho training ML
+# Leak Simulation Configuration for ML Training
+
+# Đường dẫn file .inp
+inp_path: "epanetVip1.inp"
+
+# Thư mục output (theo yêu cầu: dataset/)
+out_dir: "dataset"
+
+# Số lượng kịch bản cần sinh (1000-5000 cho dataset lớn)
+# Khuyến nghị: 500-1000 cho production, 5000+ cho deep learning
+# UPDATED: Điều chỉnh để cân bằng giữa thời gian generate và leak ratio
+# Tăng nhẹ số scenarios để có nhiều dữ liệu hơn nhưng vẫn trong khả năng thời gian
+n_scenarios: 2500  # Tăng từ 2000 → 2500 (tăng ~25% dữ liệu)
+
+# Đảm bảo mỗi node có ít nhất 1 scenario (KHUYẾN NGHỊ: true)
+# Nếu true, sẽ tạo ít nhất 1 scenario cho mỗi junction node trước, sau đó mới random
+# Đảm bảo model học được từ TẤT CẢ nodes trong mạng
+ensure_all_nodes_covered: true  # BẬT để đảm bảo cover hết 193 nodes
+
+# Cấu hình node rò rỉ
+leak_nodes:
+  # Nếu null hoặc [], sẽ dùng tất cả junctions
+  # Nếu có danh sách, chỉ dùng các node cụ thể
+  node_list: null  # Ví dụ: ["2", "3", "31", "43"]
+  
+  # Tăng leaks_per_scenario để cải thiện leak ratio mạnh hơn (mục tiêu 1.5-2%)
+  leaks_per_scenario: 3  # Tăng từ 2 → 3 leaks mỗi scenario
+  
+# Kích thước lỗ rò (m²) - bốc thăm log-uniform
+leak_area_m2:
+  min: 0.0001    # 0.1 cm² (rất nhỏ)
+  max: 0.01      # 100 cm² (lớn)
+
+# Thời gian rò rỉ (giờ)
+leak_time_h:
+  start_h_min: 1      # Leak có thể bắt đầu sớm hơn
+  start_h_max: 12     # Đảm bảo start + duration <= 24h (12 + 12 = 24)
+  duration_h_min: 8   # Leak dài hơn → nhiều data points hơn
+  duration_h_max: 12  # Leak dài hơn → tăng leak ratio
+  # Với duration 8-12h và timestep 0.25h → mỗi leak có 32-48 timestamps
+
+# Hệ số xả Cd (discharge coefficient)
+# Thường trong khoảng 0.6 - 0.9 cho lỗ tròn
+discharge_coeff: 0.75
+
+# Cấu hình mô phỏng
+simulation:
+  duration_h: 24          # Thời gian mô phỏng tổng (giờ)
+  hydraulic_timestep_h: 0.25  # Bước thời gian thủy lực (giờ) - Set = report_timestep để tránh warning
+  report_timestep_h: 0.25  # Bước thời gian báo cáo (giờ) - 15 phút để có nhiều data points trong leak time
+  # Khuyến nghị: 0.25h (15 phút) hoặc 0.5h (30 phút) thay vì 1h
+  # Với 0.25h: Leak duration 1h → 4 timestamps (thay vì 1)
+  # Trade-off: File size lớn hơn 4x, nhưng có nhiều data points hơn cho ML
+  use_scada: false         # Có dùng SCADA data thật không (false = dùng fixed demand cho Stage 1)
+  scada_hours_back: 24    # Số giờ lùi lại để load SCADA data (nếu use_scada = true)
+
+# Cấu hình nhiễu đo (Gaussian noise)
+# Stage 1: Không cần nhiễu (giữ noise = 0)
+noise:
+  # Áp lực (m) - độ lệch chuẩn
+  pressure_sigma: 0.0  # 0 = không nhiễu
+  
+  # Lưu lượng (LPS) - độ lệch chuẩn
+  flow_sigma: 0.0      # 0 = không nhiễu
+  
+  # Có thêm nhiễu hay không
+  enabled: false  # Tắt nhiễu cho Stage 1
+
+# Cấu hình export
+export:
+  # Format dữ liệu time-series
+  timeseries_format: "parquet"  # parquet hoặc csv
+  
+  # Lưu metadata (bắt buộc)
+  save_metadata: true
+  
+  # Lưu CSV để kiểm tra (tùy chọn)
+  save_csv: false  # Set true nếu muốn có CSV bên cạnh Parquet
+  
+  # Compress Parquet
+  parquet_compression: "snappy"
+
+# Cấu hình xử lý song song
+parallel:
+  enabled: true
+  max_workers: null  # null = số CPU cores, hoặc số cụ thể
+
+
