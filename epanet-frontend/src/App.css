@@ -1,0 +1,109 @@
+/* Global styles */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+        monospace;
+}
+
+/* Map styles */
+.map-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* Node marker styles */
+.node-marker {
+    transition: all 0.2s ease;
+}
+
+.node-marker:hover {
+    transform: scale(1.2);
+    z-index: 1000;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Ant Design overrides */
+.ant-layout-sider {
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.ant-card-head {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.ant-form-item {
+    margin-bottom: 16px;
+}
+
+/* Loading states */
+.loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+/* Error states */
+.error-container {
+    padding: 16px;
+    background: #fff2f0;
+    border: 1px solid #ffccc7;
+    border-radius: 6px;
+    margin: 16px 0;
+}
+
+/* Success states */
+.success-container {
+    padding: 16px;
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    border-radius: 6px;
+    margin: 16px 0;
+}
+
+/* Node Tooltip Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.node-tooltip {
+    animation: fadeIn 0.3s ease-in-out;
+}
