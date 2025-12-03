@@ -27,14 +27,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS handled by Nginx - DO NOT add here to avoid duplicate headers
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+#     expose_headers=["*"],
+#     max_age=86400,
+# )
 
 # Include leak detection router only
 app.include_router(leak_detection_router, prefix="/api/v1/leak-detection", tags=["leak-detection"])

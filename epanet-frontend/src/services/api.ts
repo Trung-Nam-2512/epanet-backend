@@ -1,7 +1,8 @@
 import { SimulationParams, CustomTimeParams, SimulationResult } from './types';
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+// Dùng relative URL - tự động dùng cùng domain, chỉ đổi port
+const API_BASE_URL = typeof window !== 'undefined' ? window.location.origin.replace(':1437', ':1438') : '';
 
 // API Response Types
 interface ApiResponse<T> {

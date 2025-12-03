@@ -28,14 +28,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS handled by Nginx - DO NOT add here to avoid duplicate headers
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+#     expose_headers=["*"],
+#     max_age=86400,
+# )
 
 # Include routers
 app.include_router(simulation.router, prefix="/api/v1/simulation", tags=["simulation"])

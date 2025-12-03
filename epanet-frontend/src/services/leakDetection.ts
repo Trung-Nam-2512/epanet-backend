@@ -3,7 +3,8 @@
  * Service để gọi API phát hiện rò rỉ
  */
 
-const LEAK_DETECTION_API_BASE = process.env.REACT_APP_LEAK_DETECTION_API_URL || 'http://localhost:8001';
+// Dùng relative URL - tự động dùng cùng domain, chỉ đổi port
+const LEAK_DETECTION_API_BASE = typeof window !== 'undefined' ? window.location.origin.replace(':1437', ':1438') : '';
 const LEAK_DETECTION_API = `${LEAK_DETECTION_API_BASE}/api/v1/leak-detection`;
 
 export interface Leak {
@@ -57,6 +58,20 @@ class LeakDetectionService {
 
     try {
       const response = await fetch(url, config);
+      
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Leak detection API returned non-JSON response:', {
+          status: response.status,
+          statusText: response.statusText,
+          contentType: contentType,
+          url: url,
+          preview: text.substring(0, 200)
+        });
+        throw new Error(`API returned HTML instead of JSON. Status: ${response.status}. This usually means the backend is not running or the endpoint is incorrect.`);
+      }
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: `HTTP error! status: ${response.status}` }));

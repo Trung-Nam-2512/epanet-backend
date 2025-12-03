@@ -19,7 +19,7 @@ services:
       - epanet-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -42,7 +42,7 @@ services:
       - epanet-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -54,13 +54,12 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        REACT_APP_API_URL: http://localhost:1438/api/v1
-        REACT_APP_LEAK_DETECTION_API_URL: http://localhost:1438/api/v1/leak-detection
-        REACT_APP_MAPBOX_TOKEN: ${MAPBOX_TOKEN:-pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw}
+        # Không cần set API URL - code sẽ tự động dùng relative URL
+        REACT_APP_MAPBOX_TOKEN: ${MAPBOX_TOKEN:-pk.eyJ1IjoibmFta2lzaTI1MTIiLCJhIjoiY21nb2djcTZzMDJiOTJqcXRtbXZ0ajU1cSJ9.AGOqB-rxrAbmLeDhC2BZeA}
     container_name: epanet-frontend-builder
     volumes:
       - ./epanet-frontend/build:/build-output
-    command: ["sh", "-c", "cp -r /app/build/* /build-output/ && echo 'Frontend build copied' && tail -f /dev/null"]
+    command: [ "sh", "-c", "cp -r /app/build/* /build-output/ && echo 'Frontend build copied' && tail -f /dev/null" ]
     networks:
       - epanet-network
 

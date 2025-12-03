@@ -206,6 +206,7 @@ TXU2   5.0   ;NULL
 
 [PIPES]
 ;ID              	Node1           	Node2           	Length      	Diameter    	Roughness   	MinorLoss   	Status
+PIPE_TXU2_306   TXU2   306   10.0   200.0   140.0   0.0   OPEN   ;Replacement for Pump 14 - Direct connection
 OPP_TA_24845(1)   172   171   100.0   125.0   140.0   0.0   OPEN   ;NULL
 3   172   868   30.0   50.0   140.0   0.0   OPEN   ;NULL
 OPP_TA_24856(1)   174   575   70.0   125.0   140.0   0.0   OPEN   ;NULL
@@ -418,7 +419,7 @@ opp_ta_30667   674   613   92.5   125.0   140.0   0.0   OPEN   ;NULL
 
 [PUMPS]
 ;ID              	Node1           	Node2           	Parameters
-14   TXU2   306      head 1      ;NULL
+;14   TXU2   306      head 1      ;NULL - DISABLED: SCADA P1 is pressure AFTER pump
 
 [VALVES]
 ;ID              	Node1           	Node2           	Diameter    	Type	Setting     	MinorLoss

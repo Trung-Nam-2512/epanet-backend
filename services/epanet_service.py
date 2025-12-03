@@ -85,6 +85,18 @@ class EPANETService:
             # Load water network model
             wn = wntr.network.WaterNetworkModel(self.input_file)
             
+            # ✅ DEBUG: Log initial reservoir head BEFORE SCADA application
+            logger.info(f"[DEBUG] All patterns in network: {list(wn.pattern_name_list)}")
+            for reservoir_name in wn.reservoir_name_list:
+                reservoir = wn.get_node(reservoir_name)
+                logger.info(f"[DEBUG] Initial reservoir {reservoir_name} base_head: {reservoir.base_head:.2f}m, pattern: {reservoir.head_pattern_name}")
+                if hasattr(reservoir, 'elevation'):
+                    logger.info(f"[DEBUG] Initial reservoir {reservoir_name} elevation: {reservoir.elevation:.2f}m")
+                # Check head_timeseries
+                if hasattr(reservoir, 'head_timeseries'):
+                    test_head = reservoir.head_timeseries.at(0)
+                    logger.info(f"[DEBUG] Initial reservoir {reservoir_name} head_timeseries.at(0): {test_head:.2f}m")
+            
             # Set simulation options
             wn.options.time.duration = simulation_input.duration * 3600  # Convert to seconds
             wn.options.time.hydraulic_timestep = simulation_input.hydraulic_timestep * 3600
@@ -138,6 +150,13 @@ class EPANETService:
                 )
                 if scada_applied:
                     logger.info("[OK] SCADA boundary conditions applied successfully")
+                    # ✅ DEBUG: Log reservoir head AFTER SCADA application
+                    for reservoir_name in wn.reservoir_name_list:
+                        reservoir = wn.get_node(reservoir_name)
+                        logger.info(f"[DEBUG] After SCADA - reservoir {reservoir_name} base_head: {reservoir.base_head:.2f}m, pattern: {reservoir.head_pattern_name}")
+                        if reservoir.head_pattern_name:
+                            pattern = wn.get_pattern(reservoir.head_pattern_name)
+                            logger.info(f"[DEBUG] Pattern {reservoir.head_pattern_name} multipliers: {pattern.multipliers[:5]}... (first 5)")
                 else:
                     logger.warning("[WARN] SCADA boundary conditions not applied - using INP file boundary conditions")
             else:
@@ -218,6 +237,65 @@ class EPANETService:
                 logger.info(f"Processing {len(wn.node_name_list)} nodes from WNTR")
                 processed_count = 0
                 
+                # ✅ DEBUG: Check pumps BEFORE processing nodes
+                logger.info(f"[DEBUG] Total pumps in network: {len(wn.pump_name_list)}")
+                logger.info(f"[DEBUG] Pump names: {list(wn.pump_name_list)}")
+                
+                # ✅ DEBUG: Check reservoir head in simulation results
+                for reservoir_name in wn.reservoir_name_list:
+                    if reservoir_name in results.node['head'].columns:
+                        reservoir_heads = results.node['head'].loc[:, reservoir_name]
+                        logger.info(f"[DEBUG] Reservoir {reservoir_name} head in simulation results:")
+                        for i, (time, head) in enumerate(reservoir_heads.items()):
+                            if i < 3:  # Log first 3 time steps
+                                logger.info(f"  Time {time}s: {head:.2f}m")
+                
+                # ✅ DEBUG: Check pump head gain and node 306 head
+                if len(wn.pump_name_list) == 0:
+                    logger.warning("[DEBUG] ⚠️ NO PUMPS FOUND IN NETWORK!")
+                for pump_name in wn.pump_name_list:
+                    pump = wn.get_link(pump_name)
+                    logger.info(f"[DEBUG] Pump {pump_name}: {pump.start_node_name} → {pump.end_node_name}")
+                    logger.info(f"  Pump type: {pump.pump_type if hasattr(pump, 'pump_type') else 'N/A'}")
+                    logger.info(f"  Initial status: {pump.initial_status}")
+                    if hasattr(pump, 'head_curve_name'):
+                        logger.info(f"  Head curve: {pump.head_curve_name}")
+                        try:
+                            curve = wn.get_curve(pump.head_curve_name)
+                            if hasattr(curve, 'points'):
+                                logger.info(f"  Head curve points: {curve.points[:5] if len(curve.points) > 5 else curve.points}")
+                        except:
+                            pass
+                    if pump.start_node_name in results.node['head'].columns and pump.end_node_name in results.node['head'].columns:
+                        start_head = results.node['head'].loc[results.node['head'].index[0], pump.start_node_name]
+                        end_head = results.node['head'].loc[results.node['head'].index[0], pump.end_node_name]
+                        head_gain = end_head - start_head
+                        logger.info(f"  Start node ({pump.start_node_name}) head: {start_head:.2f}m")
+                        logger.info(f"  End node ({pump.end_node_name}) head: {end_head:.2f}m")
+                        logger.info(f"  Head gain: {head_gain:.2f}m")
+                        # Check pump status and flow
+                        if hasattr(results, 'link'):
+                            if 'status' in results.link and pump_name in results.link['status'].columns:
+                                pump_status = results.link['status'].loc[results.link['status'].index[0], pump_name]
+                                logger.info(f"  Pump status: {pump_status} (1=Open, 0=Closed)")
+                            if 'flowrate' in results.link and pump_name in results.link['flowrate'].columns:
+                                pump_flow = results.link['flowrate'].loc[results.link['flowrate'].index[0], pump_name]
+                                pump_flow_lps = pump_flow * 1000
+                                logger.info(f"  Pump flow: {pump_flow:.4f} m³/s ({pump_flow_lps:.2f} LPS)")
+                                # Check if pump should be running based on head curve
+                                if hasattr(pump, 'head_curve_name'):
+                                    try:
+                                        curve = wn.get_curve(pump.head_curve_name)
+                                        if hasattr(curve, 'points') and len(curve.points) > 0:
+                                            # Get head gain from curve at current flow
+                                            # Curve format: (flow, head_gain)
+                                            max_head_gain = max([p[1] for p in curve.points])
+                                            logger.info(f"  Max head gain from curve: {max_head_gain:.2f}m")
+                                            if head_gain > max_head_gain + 0.1:
+                                                logger.warning(f"  ⚠️ WARNING: Head gain ({head_gain:.2f}m) > Max curve head ({max_head_gain:.2f}m) - Pump should be CLOSED!")
+                                    except:
+                                        pass
+                
                 for node_name in wn.node_name_list:
                     try:
                         node_data = []
@@ -229,9 +307,42 @@ class EPANETService:
                             
                             # Debug: Check WNTR units (only for first node, first time step)
                             if node_name == "2" and i == 0:
-                                logger.info(f"WNTR demand for node {node_name}: {demand} (type: {type(demand)})")
+                                node_obj = wn.get_node(node_name)
+                                logger.info(f"[DEBUG] Node {node_name} details:")
+                                logger.info(f"  Elevation: {node_obj.elevation:.2f}m")
+                                logger.info(f"  Head: {head:.2f}m")
+                                logger.info(f"  Pressure: {pressure:.2f}m")
+                                logger.info(f"  Demand: {demand} (type: {type(demand)})")
+                                # Check if node is connected to reservoir or pump end node
+                                connected_links = wn.get_links_for_node(node_name)
+                                logger.info(f"  Connected links: {list(connected_links)}")
+                                for link_name in connected_links:
+                                    link = wn.get_link(link_name)
+                                    link_type = type(link).__name__
+                                    logger.info(f"  Link {link_name}: type={link_type}")
+                                    if hasattr(link, 'start_node_name'):
+                                        logger.info(f"    Start node: {link.start_node_name}, End node: {link.end_node_name}")
+                                        # Check if connected to TXU2
+                                        if link.start_node_name == 'TXU2' or link.end_node_name == 'TXU2':
+                                            logger.info(f"    ✅ Connected to TXU2 via {link_name} (type: {link_type})")
+                                        # Check if connected to node 306 (pump end node)
+                                        if link.start_node_name == '306' or link.end_node_name == '306':
+                                            logger.info(f"    ✅ Connected to node 306 (pump end) via {link_name} (type: {link_type})")
+                                            # Check head of node 306
+                                            if '306' in results.node['head'].columns:
+                                                node306_head = results.node['head'].loc[results.node['head'].index[0], '306']
+                                                logger.info(f"    Node 306 head: {node306_head:.2f}m")
+                                        if link_type == 'Pump':
+                                            if hasattr(link, 'head_curve_name'):
+                                                logger.info(f"    Pump head curve: {link.head_curve_name}")
+                                                # Get head curve
+                                                try:
+                                                    curve = wn.get_curve(link.head_curve_name)
+                                                    logger.info(f"    Head curve points: {curve.points[:3] if hasattr(curve, 'points') else 'N/A'}")
+                                                except:
+                                                    pass
                                 if len(results.link['flowrate']) > 0:
-                                    logger.info(f"WNTR flowrate sample: {results.link['flowrate'].iloc[0, 0]}")
+                                    logger.info(f"  WNTR flowrate sample: {results.link['flowrate'].iloc[0, 0]}")
                             
                             # Convert m³/s to LPS: multiply by 1000
                             # EPANET convention:

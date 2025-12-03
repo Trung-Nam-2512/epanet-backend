@@ -13,9 +13,9 @@
                 "node_type": "reservoir",
                 "apply_pressure_as_head": true,
                 "apply_flow": false,
-                "pressure_type": "absolute",
+                "pressure_type": "gauge",
                 "elevation": 0.0,
-                "description": "SCADA station 13085 maps to reservoir TXU2 - pressure from SCADA will be applied as reservoir head. pressure_type: 'absolute' means SCADA pressure is already absolute head (m), 'gauge' means gauge pressure (m) that needs to be added to elevation"
+                "description": "SCADA station 13085 maps to reservoir TXU2. P1 (Ap luc vao) from SCADA is applied directly as reservoir head. If P1 is gauge pressure, set pressure_type to 'gauge' and provide correct elevation. If P1 is already absolute head, use pressure_type 'absolute'."
             }
         }
     },

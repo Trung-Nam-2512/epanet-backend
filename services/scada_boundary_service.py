@@ -169,6 +169,12 @@ class SCADABoundaryService:
                 logger.error(f"Node {epanet_node} is not a Reservoir - cannot apply SCADA boundary")
                 return False
             
+            # Lưu base_head ban đầu từ file .inp (đây là elevation cố định)
+            initial_base_head = node.base_head
+            logger.info(f"[SCADA] ====== RESERVOIR {epanet_node} BOUNDARY APPLICATION ======")
+            logger.info(f"[SCADA] Initial base_head from .inp file: {initial_base_head:.2f}m")
+            logger.info(f"[SCADA] Boundary records count: {len(boundary_records)}")
+            
             apply_pressure = mapping.get('apply_pressure_as_head', False)
             
             if not apply_pressure:
@@ -213,12 +219,18 @@ class SCADABoundaryService:
                         pressure_value = float(pressure)
                         pressure_type = mapping.get('pressure_type', 'absolute')
                         if pressure_type == 'gauge':
-                            elevation = mapping.get('elevation', 0.0)
+                            # Elevation là giá trị CỐ ĐỊNH từ file .inp
+                            elevation = initial_base_head  # Lấy từ file .inp
                             new_head = elevation + pressure_value
+                            logger.info(f"[SCADA] Fallback - Gauge pressure conversion for {epanet_node}:")
+                            logger.info(f"  Elevation (from .inp): {elevation:.2f}m")
+                            logger.info(f"  SCADA P1 (gauge): {pressure_value:.2f}m")
+                            logger.info(f"  Absolute Head: {new_head:.2f}m")
                         else:
                             new_head = pressure_value
+                            logger.info(f"[SCADA] Fallback - Using absolute head {new_head:.2f}m for {epanet_node}")
                         node.base_head = new_head
-                        logger.info(f"Applied constant head {new_head:.2f}m to reservoir {epanet_node} from SCADA (fallback - no timestamps)")
+                        logger.info(f"[SCADA] Applied constant head {new_head:.2f}m to reservoir {epanet_node} from SCADA (fallback - no timestamps)")
                         return True
                 return False
             
@@ -277,12 +289,18 @@ class SCADABoundaryService:
                         pressure_type = mapping.get('pressure_type', 'absolute')  # Default: absolute
                         if pressure_type == 'gauge':
                             # Gauge pressure: Head = Elevation + Pressure
-                            elevation = mapping.get('elevation', 0.0)
-                            head_value = elevation + pressure_value
-                            logger.debug(f"Converted gauge pressure {pressure_value}m + elevation {elevation}m = head {head_value}m")
+                            # Elevation là giá trị CỐ ĐỊNH từ file .inp (base_head ban đầu)
+                            # SCADA P1 là giá trị ĐỘNG (thay đổi theo thời gian)
+                            elevation = initial_base_head  # Lấy từ file .inp (cố định)
+                            head_value = elevation + pressure_value  # Head = Elevation (cố định) + Pressure (động)
+                            logger.info(f"[SCADA] Gauge pressure conversion for {epanet_node}:")
+                            logger.info(f"  Elevation (from .inp): {elevation:.2f}m (CỐ ĐỊNH)")
+                            logger.info(f"  SCADA P1 (gauge): {pressure_value:.2f}m (ĐỘNG)")
+                            logger.info(f"  Absolute Head: {head_value:.2f}m = {elevation:.2f}m + {pressure_value:.2f}m")
                         else:
                             # Absolute head: dùng trực tiếp (SCADA pressure đã là absolute head)
                             head_value = pressure_value
+                            logger.info(f"[SCADA] Using absolute head {head_value:.2f}m directly from SCADA pressure for {epanet_node}")
                         
                         simulation_heads.append(head_value)
                 else:
@@ -341,13 +359,40 @@ class SCADABoundaryService:
                     # Add pattern vào WNTR
                     wn.add_pattern(pattern_name, multipliers)
                     
+                    # ✅ DEBUG: Log pattern details before setting
+                    logger.info(f"[SCADA] Pattern {pattern_name} details:")
+                    logger.info(f"  Pattern timestep: {pattern_timestep_hours:.2f} hours")
+                    logger.info(f"  Hydraulic timestep: {hydraulic_timestep_hours:.2f} hours")
+                    logger.info(f"  Number of multipliers: {len(multipliers)}")
+                    logger.info(f"  Multipliers: {multipliers[:5]}... (first 5)")
+                    
                     # Set reservoir head_timeseries
+                    old_base_head = node.base_head
                     node.base_head = base_head
                     node.head_pattern_name = pattern_name
                     
-                    logger.info(f"Applied time-varying head to reservoir {epanet_node} using pattern {pattern_name}")
-                    logger.info(f"  Base head: {base_head:.2f}m, {len(multipliers)} time steps")
-                    logger.info(f"  Head range: {min(simulation_heads):.2f}m - {max(simulation_heads):.2f}m")
+                    # ✅ DEBUG: Verify head_timeseries after setting
+                    logger.info(f"[SCADA] After setting head_timeseries:")
+                    logger.info(f"  base_head: {node.base_head:.2f}m")
+                    logger.info(f"  head_pattern_name: {node.head_pattern_name}")
+                    logger.info(f"  Node elevation: {node.elevation:.2f}m" if hasattr(node, 'elevation') else "  Node has no elevation attribute")
+                    if hasattr(node, 'head_timeseries'):
+                        # Test head_timeseries.at() tại time 0
+                        test_time = 0
+                        test_head = node.head_timeseries.at(test_time)
+                        logger.info(f"  head_timeseries.at(0): {test_head:.2f}m (expected: {base_head:.2f}m)")
+                        # Check if head_timeseries includes elevation
+                        if abs(test_head - base_head) > 0.01:
+                            logger.warning(f"  ⚠️ WARNING: head_timeseries.at(0) = {test_head:.2f}m != base_head {base_head:.2f}m")
+                            logger.warning(f"  Difference: {abs(test_head - base_head):.2f}m (could be elevation?)")
+                    
+                    logger.info(f"[SCADA] ✅ Applied time-varying head to reservoir {epanet_node} using pattern {pattern_name}")
+                    logger.info(f"[SCADA]   Old base_head (from INP): {old_base_head:.2f}m")
+                    logger.info(f"[SCADA]   New base_head (from SCADA): {base_head:.2f}m")
+                    logger.info(f"[SCADA]   Pattern multipliers: {len(multipliers)} time steps, range: {min(multipliers):.3f} - {max(multipliers):.3f}")
+                    logger.info(f"[SCADA]   Head range: {min(simulation_heads):.2f}m - {max(simulation_heads):.2f}m")
+                    logger.info(f"[SCADA]   First head value: {simulation_heads[0]:.2f}m, Last head value: {simulation_heads[-1]:.2f}m")
+                    logger.info(f"[SCADA] ====== END RESERVOIR {epanet_node} BOUNDARY APPLICATION ======")
                     
                 except Exception as e:
                     logger.warning(f"Error creating head timeseries pattern for reservoir {epanet_node}: {e}")
@@ -360,8 +405,12 @@ class SCADABoundaryService:
             else:
                 # Single value
                 if simulation_heads:
+                    old_base_head = node.base_head
                     node.base_head = simulation_heads[0]
-                    logger.info(f"Applied constant head {simulation_heads[0]:.2f}m to reservoir {epanet_node} from SCADA")
+                    logger.info(f"[SCADA] ✅ Applied constant head to reservoir {epanet_node}")
+                    logger.info(f"[SCADA]   Old base_head (from INP): {old_base_head:.2f}m")
+                    logger.info(f"[SCADA]   New base_head (from SCADA): {simulation_heads[0]:.2f}m")
+                    logger.info(f"[SCADA] ====== END RESERVOIR {epanet_node} BOUNDARY APPLICATION ======")
             
             return True
             
